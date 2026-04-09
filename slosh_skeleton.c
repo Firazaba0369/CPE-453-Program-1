@@ -40,6 +40,12 @@ void display_prompt(void);
  */
 void sigint_handler(int sig) {
     /* TODO: Your implementation here */
+    if (sig == SIGINT){
+        //Kill child process if running, otherwise ignore
+        if (child_running) {
+
+        }
+    }
 }
 
 /**
@@ -117,6 +123,11 @@ int main(void) {
     int builtin_result;
 
     /* TODO: Set up signal handling. Which signals matter to a shell? */
+    struct sigaction sa;
+    sa.sa_handler = sigint_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART; 
+    sigaction(SIGINT, &sa, NULL);
 
     while (status) {
         display_prompt();
