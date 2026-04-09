@@ -70,7 +70,7 @@ void display_prompt(void) {
 /**
  * Parse the input line into command arguments
  *
- * TODO: Extract tokens from the input string. What should you do with special
+ * Extract tokens from the input string. What should you do with special
  * characters like pipes and redirections? How will the rest of the code know
  * what to execute?
  * Hint: You'll need to handle more than just splitting on spaces.
@@ -80,7 +80,16 @@ void display_prompt(void) {
  * @return Number of arguments parsed
  */
 int parse_input(char *input, char **args) {
-    /* TODO: Your implementation here */
+    char *token;
+    int i = 0;
+
+    token = strtok(input, " \t\n\r\f");  // Split input into tokens based on whitespace
+    while (token != NULL && i < MAX_ARGS - 1) {
+        args[i++] = token;
+        token = strtok(NULL, " \t\n\r\f");
+    }
+    args[i] = NULL;  // Null-terminate the arguments array
+
     return 0;
 }
 
@@ -143,6 +152,7 @@ int main(void) {
 
         /* Handle empty command */
         if (args[0] == NULL) {
+            printf("No command entered. Please try again.\n");
             continue;
         }
 
