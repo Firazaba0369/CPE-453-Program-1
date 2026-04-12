@@ -150,7 +150,24 @@ void execute_command(char **args) {
  * @return 0 to exit shell, 1 to continue, -1 if not a built-in command
  */
 int handle_builtin(char **args) {
-    /* TODO: Your implementation here */
+    // Check for cd command
+    if (strcmp(args[0], "cd") == 0){
+        if (chdir(args[1]) == 0){
+            // printf("Current working directory updated");
+            return 1
+        }
+        else{
+            perror("error changing directory");
+            return -1
+        }
+        
+    }
+
+    // Check for exit command
+    if (strcmp(args[0], "exit") == 0){
+        return 0;
+    }
+
     return -1;  /* Not a builtin command */
 }
 
