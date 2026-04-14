@@ -30,6 +30,22 @@
 #define MAX_INPUT_SIZE 1024
 #define MAX_ARGS 64
 
+#define NONE 0
+#define REDIRECT_NORMAL_COMMAND 1
+#define REDIRECT_APPEND_COMMAND 2
+#define PIPE_COMMAND 3
 
+/* Command Struct */
+typedef struct {
+    char **argv;
+    int type;
+    char *outfile;
+} command_t;
+
+/* Forward declarations */
+void display_prompt(void);
+int parse_input(char *input, char **args);
+void execute_command(char **args);
+int handle_builtin(char **args);
 
 #endif /* SLOSH_H */

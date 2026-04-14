@@ -16,6 +16,9 @@ volatile sig_atomic_t child_running = 0;
 
 /* Forward declarations */
 void display_prompt(void);
+int parse_input(char *input, char **args);
+void execute_command(char **args);
+int handle_builtin(char **args);
 
 /**
  * Signal handler for SIGINT (Ctrl+C)
@@ -111,7 +114,7 @@ int parse_input(char *input, char **args) {
 
         // Extract the word
         int len = pos - start;
-        char *word = malloc(len + 1);
+        char word[len + 1];
         strncpy(word, input + start, len);
         word[len] = '\0';
         args[i++] = word;
@@ -120,6 +123,21 @@ int parse_input(char *input, char **args) {
     // Null-terminate the args array
     args[i] = NULL;
     return i;
+}
+
+/**
+ * Helper function to execute_command to get commands and organize into command struct 
+ * for easier execution
+ * 
+ * 
+ * 
+ * @param cmnds Array of command structs
+ * @param num_cmnds Number of commands
+ * 
+ * 
+*/
+void get_commands(command_t *cmnds, int num_cmnds){
+    //Move section from execute command into this area 
 }
 
 /**
@@ -137,6 +155,67 @@ int parse_input(char *input, char **args) {
  */
 void execute_command(char **args) {
     /* TODO: Your implementation here */
+    int num_cmnds = 1;
+    command_t cmnds[MAX_ARGS];
+
+    // initialize first command start
+    cmnds[num_cmnds].argv = &args[0];
+    cmnds[num_cmnds].type = NONE;
+    cmnds[num_cmnds].outfile = NULL;
+
+    int i = 0; 
+    while(args[i] != NULL){
+
+        // Track pipe commands
+        if (strcmp(args[i], "|") == 0) {
+
+            // Null terminate to split command args
+            args[i] = NULL;  
+            cmnds[num_cmnds].type = PIPE_COMMAND;
+            num_cmnds++;
+
+            // Initialize next command 
+            cmnds[num_cmnds].argv = &args[i + 1];
+            cmnds[num_cmnds].type = NONE;
+            cmnds[num_cmnds].outfile = NULL;
+        }
+
+        // Track redirect create/overwrite command
+        else if (strcmp(args[i], ">") == 0){
+            if (args[i + 1] == NULL) {
+                fprintf(stderr, "missing output file\n");
+                return;
+            }
+
+            args[i] = NULL;  
+            cmnds[num_cmnds].type = REDIRECT_NORMAL_COMMAND;
+            cmnds[num_cmnds].outfile = args[i + 1];
+            num_cmnds++;
+            i += 2;
+            continue;
+        }
+
+        // Track redirect append command
+        else if(strcmp(args[i], ">>") == 0){
+            if (args[i + 1] == NULL) {
+                fprintf(stderr, "missing output file\n");
+                return;
+            }
+
+            args[i] = NULL;  
+            cmnds[num_cmnds].type = REDIRECT_APPEND_COMMAND;
+            cmnds[num_cmnds].outfile = args[i + 1];
+            num_cmnds++;
+            i += 2;
+            continue;
+        }
+        i++;
+    }
+
+    // loop to fork according to number of pipes
+    for(i = 0; i < command_count; i++){
+       
+    }
 }
 
 /**
