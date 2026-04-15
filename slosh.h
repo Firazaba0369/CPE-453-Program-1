@@ -42,5 +42,7 @@ void display_prompt(void);
 int parse_input(char *input, char **args);
 void execute_command(char **args);
 int handle_builtin(char **args);
+void sigint_handler(int sig);
+int get_commands(char **args, command_t *cmnds);
 
 #endif /* SLOSH_H */

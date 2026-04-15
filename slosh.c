@@ -6,21 +6,12 @@
  * Description: This file contains the main implementation of the SLOsh shell. It includes
  * the main loop, command parsing, execution, and signal handling.
  * 
- * TODO: Complete the implementation according to the comments
  */
 
 #include "slosh.h"
 
 /* Global variable for signal handling */
 volatile sig_atomic_t child_running = 0;
-
-pid_t pid;
-
-/* Forward declarations */
-void display_prompt(void);
-int parse_input(char *input, char **args);
-void execute_command(char **args);
-int handle_builtin(char **args);
 
 /**
  * Signal handler for SIGINT (Ctrl+C)
@@ -31,9 +22,11 @@ int handle_builtin(char **args);
  * Hint: The global variable tracks important state.
  */
 void sigint_handler(int sig) {
-    /* TODO: Your implementation here */
     (void)sig;
-    write(STDOUT_FILENO, "\n", 1);
+
+    if (!child_running) {
+        write(STDOUT_FILENO, "\n", 1);
+    }
 }
 
 /**
@@ -159,7 +152,7 @@ int get_commands(char **args, command_t *cmnds){
         else if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0){
             if (args[i + 1] == NULL) {
                 fprintf(stderr, "missing output file\n");
-                return;
+                return -1;
             }
 
             // Set append flag if command is >>
@@ -172,7 +165,7 @@ int get_commands(char **args, command_t *cmnds){
             // Redirection is always last command so error if further commands 
             if (args[i + 2] != NULL) {
                 fprintf(stderr, "invalid redirection syntax\n");
-                return;
+                return -1;
             }
             break;
         }
@@ -185,7 +178,6 @@ int get_commands(char **args, command_t *cmnds){
 /**
  * Execute the given command with its arguments
  *
- * TODO: Run the command. Your implementation should handle:
  * - Basic command execution
  * - Pipes (|)
  * - Output redirection (> and >>)
@@ -196,43 +188,127 @@ int get_commands(char **args, command_t *cmnds){
  * @param args Array of command arguments (NULL-terminated)
  */
 void execute_command(char **args) {
-    /* TODO: Your implementation here */
     command_t cmnds[MAX_ARGS];
     int num_cmnds = get_commands(args, cmnds);
+    pid_t pids[MAX_ARGS];
+    int prev_pipe = -1; 
 
-    int prev_pipe = STDIN_FILENO;
-    int pfds[2];
+    if (num_cmnds > 0) {
+        child_running = 1;
+    }
+    
     // loop to fork according to number of pipes
     for(int i = 0; i < num_cmnds; i++){
-        pid_t = fork();
+        int pfds[2];
 
-        if (pid == 0){
-            if(i > 0){
-                // Not first then read from prev pipe
+        // Create pipe for all but last command
+        if (i < num_cmnds - 1){
+            if (pipe(pfds) < 0) {
+                perror("pipe");
+                return;
+            }
+        }
+
+        // Check for fork error
+        pids[i] = fork();
+        if (pids[i] < 0) {
+            perror("fork");
+            return;
+        }
+
+        // Child process
+        if (pids[i] == 0){
+
+            // Child signal handler
+            struct sigaction sa;
+            sa.sa_handler = SIG_DFL;
+            sigemptyset(&sa.sa_mask);
+            sa.sa_flags = 0;
+            sigaction(SIGINT, &sa, NULL);
+
+            // Read from pipe if not first command
+            if(prev_pipe != -1){
+                if (dup2(prev_pipe, STDIN_FILENO) < 0) {
+                    perror("dup2");
+                    exit(1);
+                }
+                close(prev_pipe);
             }
 
+            // Write to next pipe if not last command 
             if (i < num_cmnds - 1){
-                // not last then read from next pipe
+                if (dup2(pfds[1], STDOUT_FILENO) < 0) {
+                    perror("dup2");
+                    exit(1);
+                }
+                close(pfds[0]); 
+                close(pfds[1]); 
             }
 
+            // Redirect if last command has output file
             else if(cmnds[i].outfile != NULL){
-                // last command and has redirect so write to file
+                int fd;
+                if (cmnds[i].append) {
+                    fd = open(cmnds[i].outfile, O_WRONLY | O_CREAT | O_APPEND, 0644);
+                } else {
+                    fd = open(cmnds[i].outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+                }
+                if (fd < 0) {
+                    perror("open");
+                    exit(1);
+                }
+                if (dup2(fd, STDOUT_FILENO) < 0) {
+                    perror("dup2");
+                    exit(1);
+                }
+                close(fd);
             }
 
-            execvp(cmnds[i][0], cmnds[i])
+            //Execute command after dealing with special ops
+            execvp(cmnds[i].argv[0], cmnds[i].argv);
+            perror("execvp");
+            exit(1);
         }
 
+        // Parent process
         else{
-            // Parent Process
+            if (prev_pipe != -1) close(prev_pipe);
+            if (i < num_cmnds - 1) {
+                close(pfds[1]); // Parent doesn't write to current pipe
+                prev_pipe = pfds[0]; // Save read end for next command
+            }
         }
-        
     }
+
+    // Close any remaining pipe in parent
+    if (prev_pipe != -1) {
+        close(prev_pipe);
+    }
+
+    // Wait for children processes to finish
+    for (int i = 0; i < num_cmnds; i++) {
+        int status;
+        if (waitpid(pids[i], &status, 0) < 0) {
+            perror("waitpid");
+            continue;
+        }
+
+        // Capture status
+        if (WIFSIGNALED(status)) {
+            fprintf(stderr, "terminated by signal %d\n", WTERMSIG(status));
+        }
+        else if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+            fprintf(stderr, "exit status %d\n", WEXITSTATUS(status));
+        }
+    }
+    child_running = 0;
+
+    return;
 }
 
 /**
  * Check for and handle built-in commands
  *
- * TODO: Implement support for built-in commands:
  * - exit: Exit the shell
  * - cd: Change directory
  *
@@ -244,11 +320,11 @@ int handle_builtin(char **args) {
     if (strcmp(args[0], "cd") == 0){
         if (chdir(args[1]) == 0){
             // printf("Current working directory updated");
-            return 1
+            return 1;
         }
         else{
             perror("error changing directory");
-            return -1
+            return -1;
         }
         
     }
@@ -269,9 +345,9 @@ int main(void) {
 
     /* TODO: Set up signal handling. Which signals matter to a shell? */
     struct sigaction sa;
-    sa.sa_handler = SIG_DFL;
+    sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0; 
+    sa.sa_flags = SA_RESTART; 
     sigaction(SIGINT, &sa, NULL);
 
     while (status) {
