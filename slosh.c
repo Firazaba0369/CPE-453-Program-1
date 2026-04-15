@@ -343,7 +343,7 @@ int main(void) {
     int status = 1;
     int builtin_result;
 
-    /* TODO: Set up signal handling. Which signals matter to a shell? */
+    // Signal handeling setup for SIGINT (Ctrl+C)
     struct sigaction sa;
     sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
@@ -356,7 +356,14 @@ int main(void) {
         /* Read input and handle signal interruption */
         if (fgets(input, MAX_INPUT_SIZE, stdin) == NULL) {
             /* TODO: Handle the case when fgets returns NULL. When does this happen? */
-            break;
+            if (feof(stdin)) {
+                printf("\n");
+                break; // EOF, exit the shell
+            } else if (ferror(stdin)) {
+                perror("Error reading input");
+                clearerr(stdin); // Clear error and continue
+                continue;
+            }
         }
 
         /* Parse input */
