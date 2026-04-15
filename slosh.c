@@ -126,44 +126,22 @@ int parse_input(char *input, char **args) {
 }
 
 /**
- * Helper function to execute_command to get commands and organize into command struct 
+ * Helper function for execute_command that gets commands and organizes into command struct 
  * for easier execution
  * 
- * 
- * 
+ * @param args Array of command arguments (NULL-terminated)
  * @param cmnds Array of command structs
- * @param num_cmnds Number of commands
- * 
+ * @return Number of commands parsed
  * 
 */
-void get_commands(command_t *cmnds, int num_cmnds){
-    //Move section from execute command into this area 
-}
-
-/**
- * Execute the given command with its arguments
- *
- * TODO: Run the command. Your implementation should handle:
- * - Basic command execution
- * - Pipes (|)
- * - Output redirection (> and >>)
- *
- * What system calls will you need? How do you connect processes together?
- * How do you redirect file descriptors?
- *
- * @param args Array of command arguments (NULL-terminated)
- */
-void execute_command(char **args) {
-    /* TODO: Your implementation here */
-    int num_cmnds = 1;
-    command_t cmnds[MAX_ARGS];
-
+int get_commands(char **args, command_t *cmnds){
     // initialize first command start
     cmnds[num_cmnds].argv = &args[0];
     cmnds[num_cmnds].type = NONE;
     cmnds[num_cmnds].outfile = NULL;
 
     int i = 0; 
+    int num_cmnds = 1;
     while(args[i] != NULL){
 
         // Track pipe commands
@@ -212,9 +190,40 @@ void execute_command(char **args) {
         i++;
     }
 
+    return num_cmnds;
+}
+
+/**
+ * Execute the given command with its arguments
+ *
+ * TODO: Run the command. Your implementation should handle:
+ * - Basic command execution
+ * - Pipes (|)
+ * - Output redirection (> and >>)
+ *
+ * What system calls will you need? How do you connect processes together?
+ * How do you redirect file descriptors?
+ *
+ * @param args Array of command arguments (NULL-terminated)
+ */
+void execute_command(char **args) {
+    /* TODO: Your implementation here */
+    command_t cmnds[MAX_ARGS];
+    int num_cmnds = get_commands(args, cmnds);
+
     // loop to fork according to number of pipes
-    for(i = 0; i < command_count; i++){
-       
+    for(i = 0; i < num_cmnds; i++){
+        if(cmnds[i].type == PIPE_COMMAND){
+
+        }
+
+        if(cmnds[i].type == REDIRECT_NORMAL_COMMAND){
+
+        }
+
+        if(cmnds[i].type == REDIRECT_NORMAL_COMMAND){
+
+        }
     }
 }
 
