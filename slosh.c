@@ -14,6 +14,8 @@
 /* Global variable for signal handling */
 volatile sig_atomic_t child_running = 0;
 
+pid_t pid;
+
 /* Forward declarations */
 void display_prompt(void);
 int parse_input(char *input, char **args);
@@ -30,12 +32,8 @@ int handle_builtin(char **args);
  */
 void sigint_handler(int sig) {
     /* TODO: Your implementation here */
-    if (sig == SIGINT){
-        //Kill child process if running, otherwise ignore
-        if (child_running) {
-
-        }
-    }
+    (void)sig;
+    write(STDOUT_FILENO, "\n", 1);
 }
 
 /**
@@ -137,55 +135,46 @@ int parse_input(char *input, char **args) {
 int get_commands(char **args, command_t *cmnds){
     // initialize first command start
     cmnds[num_cmnds].argv = &args[0];
-    cmnds[num_cmnds].type = NONE;
     cmnds[num_cmnds].outfile = NULL;
+    cmnds[num_cmnds].append = 0;
 
     int i = 0; 
     int num_cmnds = 1;
     while(args[i] != NULL){
 
-        // Track pipe commands
+        // Get pipe commands
         if (strcmp(args[i], "|") == 0) {
 
             // Null terminate to split command args
             args[i] = NULL;  
-            cmnds[num_cmnds].type = PIPE_COMMAND;
             num_cmnds++;
 
             // Initialize next command 
             cmnds[num_cmnds].argv = &args[i + 1];
-            cmnds[num_cmnds].type = NONE;
             cmnds[num_cmnds].outfile = NULL;
+            cmnds[num_cmnds].append = 0;
         }
 
-        // Track redirect create/overwrite command
-        else if (strcmp(args[i], ">") == 0){
+        // Get redirect command
+        else if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0){
             if (args[i + 1] == NULL) {
                 fprintf(stderr, "missing output file\n");
                 return;
             }
 
-            args[i] = NULL;  
-            cmnds[num_cmnds].type = REDIRECT_NORMAL_COMMAND;
-            cmnds[num_cmnds].outfile = args[i + 1];
-            num_cmnds++;
-            i += 2;
-            continue;
-        }
+            // Set append flag if command is >>
+            if(strcmp(args[i], ">>") == 0) cmnds[num_cmnds].append = 1;
 
-        // Track redirect append command
-        else if(strcmp(args[i], ">>") == 0){
-            if (args[i + 1] == NULL) {
-                fprintf(stderr, "missing output file\n");
+            // Null terminate to split command args
+            args[i] = NULL;  
+            cmnds[num_cmnds].outfile = args[i + 1];
+
+            // Redirection is always last command so error if further commands 
+            if (args[i + 2] != NULL) {
+                fprintf(stderr, "invalid redirection syntax\n");
                 return;
             }
-
-            args[i] = NULL;  
-            cmnds[num_cmnds].type = REDIRECT_APPEND_COMMAND;
-            cmnds[num_cmnds].outfile = args[i + 1];
-            num_cmnds++;
-            i += 2;
-            continue;
+            break;
         }
         i++;
     }
@@ -211,19 +200,32 @@ void execute_command(char **args) {
     command_t cmnds[MAX_ARGS];
     int num_cmnds = get_commands(args, cmnds);
 
+    int prev_pipe = STDIN_FILENO;
+    int pfds[2];
     // loop to fork according to number of pipes
-    for(i = 0; i < num_cmnds; i++){
-        if(cmnds[i].type == PIPE_COMMAND){
+    for(int i = 0; i < num_cmnds; i++){
+        pid_t = fork();
 
+        if (pid == 0){
+            if(i > 0){
+                // Not first then read from prev pipe
+            }
+
+            if (i < num_cmnds - 1){
+                // not last then read from next pipe
+            }
+
+            else if(cmnds[i].outfile != NULL){
+                // last command and has redirect so write to file
+            }
+
+            execvp(cmnds[i][0], cmnds[i])
         }
 
-        if(cmnds[i].type == REDIRECT_NORMAL_COMMAND){
-
+        else{
+            // Parent Process
         }
-
-        if(cmnds[i].type == REDIRECT_NORMAL_COMMAND){
-
-        }
+        
     }
 }
 
@@ -267,9 +269,9 @@ int main(void) {
 
     /* TODO: Set up signal handling. Which signals matter to a shell? */
     struct sigaction sa;
-    sa.sa_handler = sigint_handler;
+    sa.sa_handler = SIG_DFL;
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART; 
+    sa.sa_flags = 0; 
     sigaction(SIGINT, &sa, NULL);
 
     while (status) {
