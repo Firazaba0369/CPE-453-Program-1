@@ -21,6 +21,7 @@
 #include <signal.h>
 #include <limits.h>
 #include <errno.h>
+#include <ctype.h>
 
 /* Define PATH_MAX if it's not available */
 #ifndef PATH_MAX

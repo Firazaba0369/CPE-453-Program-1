@@ -127,9 +127,9 @@ int parse_input(char *input, char **args) {
 */
 int get_commands(char **args, command_t *cmnds){
     // initialize first command start
-    cmnds[num_cmnds].argv = &args[0];
-    cmnds[num_cmnds].outfile = NULL;
-    cmnds[num_cmnds].append = 0;
+    cmnds[0].argv = &args[0];
+    cmnds[0].outfile = NULL;
+    cmnds[0].append = 0;
 
     int i = 0; 
     int num_cmnds = 1;

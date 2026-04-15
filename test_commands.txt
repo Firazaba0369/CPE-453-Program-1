@@ -1,0 +1,23 @@
+/bin/ls
+
+definitely_not_a_real_command
+
+false
+
+echo hello | cat
+
+printf "c\nb\na\n" | sort
+
+printf "dog\ncat\nbird\n" | sort | head -n 1
+
+echo first > test_out.txt
+cat test_out.txt
+
+echo second >> test_out.txt
+cat test_out.txt
+
+echo replaced > test_out.txt
+cat test_out.txt
+
+echo pipe_to_file | cat > pipe_out.txt
+cat pipe_out.txt
