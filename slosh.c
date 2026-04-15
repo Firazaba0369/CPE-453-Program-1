@@ -104,11 +104,10 @@ int parse_input(char *input, char **args) {
         }
 
         // Extract the word
-        int len = pos - start;
         char word[len + 1];
         strncpy(word, input + start, len);
         word[len] = '\0';
-        args[i++] = word;
+        args[i++] = strdup(word);
     }
 
     // Null-terminate the args array
@@ -140,12 +139,12 @@ int get_commands(char **args, command_t *cmnds){
 
             // Null terminate to split command args
             args[i] = NULL;  
-            num_cmnds++;
 
             // Initialize next command 
             cmnds[num_cmnds].argv = &args[i + 1];
             cmnds[num_cmnds].outfile = NULL;
             cmnds[num_cmnds].append = 0;
+            num_cmnds++;
         }
 
         // Get redirect command
@@ -317,16 +316,25 @@ void execute_command(char **args) {
  */
 int handle_builtin(char **args) {
     // Check for cd command
-    if (strcmp(args[0], "cd") == 0){
-        if (chdir(args[1]) == 0){
-            // printf("Current working directory updated");
-            return 1;
+    if (strcmp(args[0], "cd") == 0) {
+        const char *target;
+
+        // If no argument is given, change to HOME directory
+        if (args[1] == NULL) {
+            target = getenv("HOME");
+            if (target == NULL) {
+                fprintf(stderr, "cd: HOME not set\n");
+                return 1;
+            }
+        } else {
+            target = args[1];
         }
-        else{
-            perror("error changing directory");
-            return -1;
+
+        if (chdir(target) != 0) {
+            perror("cd");
         }
-        
+
+        return 1;
     }
 
     // Check for exit command

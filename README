@@ -1,0 +1,15 @@
+Names: Franky Irazaba and Brandon Montalvo
+
+Build Instructions:
+Run `make` to build the shell executable `slosh`.
+
+Run Instructions:
+Run `./slosh` to start the shell.
+
+Special Instructions / Notes:
+- This shell supports execution of external commands, built-in commands (`cd`, `exit`), pipes (`|`), and output redirection (`>` and `>>`).
+- Output redirection is assumed to appear at the end of a command or at the end of a pipeline.
+- Multiple output redirections in a single command line are not supported.
+- Redirection is applied only to the final command in a pipeline.
+- This implementation does not support quoted arguments or advanced shell syntax beyond the assignment requirements.
+- SIGINT handling is implemented so that Ctrl-C does not terminate the shell, but does terminate foreground child processes.
