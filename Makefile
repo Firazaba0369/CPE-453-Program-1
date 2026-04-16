@@ -18,3 +18,8 @@ $(EXEC): $(SRCS)
 clean:
 	rm -f $(EXEC)
 	rm -f slosh_tests
+
+fresh:
+	make clean
+	make all
+	./slosh

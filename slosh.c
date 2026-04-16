@@ -26,6 +26,7 @@ void sigint_handler(int sig) {
 
     if (!child_running) {
         write(STDOUT_FILENO, "\n", 1);
+        display_prompt();
     }
 }
 
@@ -94,6 +95,30 @@ int parse_input(char *input, char **args) {
             continue;
         }
 
+        // handle quoted strings
+        if (input[pos] == '"' || input[pos] == '\'') {
+            char quote = input[pos];
+            pos++;
+
+            int start = pos;
+            while (input[pos] != '\0' && input[pos] != quote) {
+                pos++;
+            }
+
+            int word_len = pos - start;
+            if (input[pos] == quote) {
+                pos++; // Skip closing quote
+            }
+            if (word_len > 0) {
+                char word[MAX_INPUT_SIZE];
+                strncpy(word, input + start, word_len);
+                word[word_len] = '\0';
+                args[i++] = strdup(word);
+            }
+            continue;
+        }
+
+
         // Handle normal word
         int start = pos;
         while (input[pos] != '\0' &&
@@ -103,11 +128,14 @@ int parse_input(char *input, char **args) {
             pos++;
         }
 
+        int word_len = pos - start;
         // Extract the word
-        char word[len + 1];
-        strncpy(word, input + start, len);
-        word[len] = '\0';
-        args[i++] = strdup(word);
+        if (word_len > 0) {
+            char word[MAX_INPUT_SIZE];
+            strncpy(word, input + start, word_len);
+            word[word_len] = '\0';
+            args[i++] = strdup(word);
+        }
     }
 
     // Null-terminate the args array
@@ -130,6 +158,12 @@ int get_commands(char **args, command_t *cmnds){
     cmnds[0].outfile = NULL;
     cmnds[0].append = 0;
 
+    // Check for invalid syntax at start of command
+    if (strcmp(args[0], "|") == 0 || strcmp(args[0], ">") == 0 || strcmp(args[0], ">>") == 0) {
+        fprintf(stderr, "SLOsh: syntax error using '%s'\n", args[0]);
+        return -1;
+    }
+
     int i = 0; 
     int num_cmnds = 1;
     while(args[i] != NULL){
@@ -150,20 +184,20 @@ int get_commands(char **args, command_t *cmnds){
         // Get redirect command
         else if (strcmp(args[i], ">") == 0 || strcmp(args[i], ">>") == 0){
             if (args[i + 1] == NULL) {
-                fprintf(stderr, "missing output file\n");
+                fprintf(stderr, "SLOsh: missing output file\n");
                 return -1;
             }
 
             // Set append flag if command is >>
-            if(strcmp(args[i], ">>") == 0) cmnds[num_cmnds].append = 1;
+            if(strcmp(args[i], ">>") == 0) cmnds[num_cmnds - 1].append = 1;
 
             // Null terminate to split command args
             args[i] = NULL;  
-            cmnds[num_cmnds].outfile = args[i + 1];
+            cmnds[num_cmnds - 1].outfile = args[i + 1];
 
             // Redirection is always last command so error if further commands 
             if (args[i + 2] != NULL) {
-                fprintf(stderr, "invalid redirection syntax\n");
+                fprintf(stderr, "SLOsh: invalid redirection syntax\n");
                 return -1;
             }
             break;
@@ -199,6 +233,12 @@ void execute_command(char **args) {
     // loop to fork according to number of pipes
     for(int i = 0; i < num_cmnds; i++){
         int pfds[2];
+
+        // Check for empty command (e.g. consecutive pipes)
+        if (cmnds[i].argv[0] == NULL) {
+            fprintf(stderr, "SLOsh: syntax error using '|'\n");
+            return;
+        }
 
         // Create pipe for all but last command
         if (i < num_cmnds - 1){
@@ -265,7 +305,8 @@ void execute_command(char **args) {
 
             //Execute command after dealing with special ops
             execvp(cmnds[i].argv[0], cmnds[i].argv);
-            perror("execvp");
+            // perror("execvp");
+            fprintf(stderr, "SLOsh: %s: command not found\n", cmnds[i].argv[0]);
             exit(1);
         }
 
@@ -294,15 +335,13 @@ void execute_command(char **args) {
 
         // Capture status
         if (WIFSIGNALED(status)) {
-            fprintf(stderr, "terminated by signal %d\n", WTERMSIG(status));
+            fprintf(stderr, "SLOsh: terminated by signal %d\n", WTERMSIG(status));
         }
         else if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
-            fprintf(stderr, "exit status %d\n", WEXITSTATUS(status));
+            fprintf(stderr, "SLOsh: exit status %d\n", WEXITSTATUS(status));
         }
     }
     child_running = 0;
-
-    return;
 }
 
 /**
@@ -323,7 +362,7 @@ int handle_builtin(char **args) {
         if (args[1] == NULL) {
             target = getenv("HOME");
             if (target == NULL) {
-                fprintf(stderr, "cd: HOME not set\n");
+                fprintf(stderr, "SLOsh: cd: HOME not set\n");
                 return 1;
             }
         } else {
@@ -351,7 +390,7 @@ int main(void) {
     int status = 1;
     int builtin_result;
 
-    // Signal handeling setup for SIGINT (Ctrl+C)
+    // Signal handling setup for SIGINT (Ctrl+C)
     struct sigaction sa;
     sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
@@ -375,11 +414,11 @@ int main(void) {
         }
 
         /* Parse input */
-        parse_input(input, args);
+        int argc = parse_input(input, args);
 
         /* Handle empty command */
         if (args[0] == NULL) {
-            printf("No command entered. Please try again.\n");
+            printf("SLOsh: No command entered. Please try again.\n");
             continue;
         }
 
@@ -387,11 +426,17 @@ int main(void) {
         builtin_result = handle_builtin(args);
         if (builtin_result >= 0) {
             status = builtin_result;
-            continue;
+        } else {
+            /* Execute external command */
+            execute_command(args);
         }
 
-        /* Execute external command */
-        execute_command(args);
+        /* Free allocated memory for arguments */
+        for (int i = 0; i < argc; i++) {
+            if (args[i] != NULL) {
+                free(args[i]);
+            }
+        }
     }
 
     printf("SLOsh exiting...\n");

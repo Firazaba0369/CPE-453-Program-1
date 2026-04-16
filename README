@@ -11,5 +11,5 @@ Special Instructions / Notes:
 - Output redirection is assumed to appear at the end of a command or at the end of a pipeline.
 - Multiple output redirections in a single command line are not supported.
 - Redirection is applied only to the final command in a pipeline.
-- This implementation does not support quoted arguments or advanced shell syntax beyond the assignment requirements.
+- Quoted arguments are supported (e.g `grep "hello world" example.txt`).
 - SIGINT handling is implemented so that Ctrl-C does not terminate the shell, but does terminate foreground child processes.

@@ -21,3 +21,24 @@ cat test_out.txt
 
 echo pipe_to_file | cat > pipe_out.txt
 cat pipe_out.txt
+
+
+# edge cases
+
+|
+
+|||||
+
+>
+
+>>
+
+| cat
+
+> test.txt
+
+ls |
+
+ls >
+
+echo hello > test.txt > test2.txt
